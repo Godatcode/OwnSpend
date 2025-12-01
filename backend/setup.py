@@ -106,6 +106,14 @@ def create_initial_data():
         print(f"\n📝 Save this API key - you'll need it to configure the Android app!")
         print(f"\n✅ Created {len(categories)} default categories")
         
+        # Create default rules
+        try:
+            from rules_engine import create_default_rules
+            create_default_rules(db, user.id)
+            print(f"✅ Created default auto-categorization rules")
+        except Exception as e:
+            print(f"⚠️  Could not create default rules: {e}")
+        
         print("\n" + "="*60)
         print("Backend setup complete!")
         print("="*60)

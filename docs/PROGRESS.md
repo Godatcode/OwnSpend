@@ -59,55 +59,68 @@
 
 ## 🔄 Phase 2: Backend Features (IN PROGRESS)
 
-### Rules Engine
-- [ ] Rule matching implementation
-- [ ] Priority-based rule execution
-- [ ] Merchant auto-assignment
-- [ ] Category auto-assignment
-- [ ] Internal transfer detection
-- [ ] Manual override protection
-- [ ] Rule testing endpoint
-- [ ] Historical re-run capability
+### Rules Engine ✅ (COMPLETED)
+- [x] Rule matching implementation
+- [x] Priority-based rule execution
+- [x] Multiple match types (merchant_key, text_contains, upi_id, amount, channel, etc.)
+- [x] Multiple action types (set_merchant, set_category, mark_internal, etc.)
+- [x] Merchant auto-assignment
+- [x] Category auto-assignment
+- [x] Internal transfer detection
+- [x] Manual override protection (bit flags)
+- [x] Integrated with transaction creation
+- [x] Historical re-run capability (POST /api/rules/reapply)
+- [x] Default rules for common merchants (Zomato, Swiggy, Amazon, Uber, etc.)
 
-### Google Sheets Integration
-- [ ] Apps Script webhook setup
-- [ ] Transaction sync to Sheet
-- [ ] Failed sync retry mechanism
-- [ ] Full rebuild from DB
-- [ ] Configurable column mapping
+### Google Sheets Integration ✅ (COMPLETED)
+- [x] Apps Script webhook setup
+- [x] Apps Script template with auto-formatting
+- [x] Transaction sync to Sheet (automatic on create/update)
+- [x] Full rebuild from DB (POST /api/admin/sheets/sync-all)
+- [x] Single transaction sync (POST /api/admin/sheets/sync-transaction/{id})
+- [x] Configuration check endpoint
+- [x] Comprehensive setup documentation
+- [x] Color-coded amounts (red=debit, green=credit)
+- [x] Auto-header initialization
+- [ ] Failed sync retry mechanism (TODO - log to table)
+- [ ] Configurable column mapping (Future enhancement)
 
-### Enhanced APIs
-- [ ] Merchant CRUD operations
-  - [ ] Create merchant
-  - [ ] Update merchant details
-  - [ ] Merge duplicate merchants
-  - [ ] Delete merchant
-- [ ] Category CRUD operations
-  - [ ] Create category
-  - [ ] Update category
-  - [ ] Manage hierarchy
-  - [ ] Reorder categories
-- [ ] Transaction editing
-  - [ ] Update merchant
-  - [ ] Update category
-  - [ ] Mark as internal transfer
-  - [ ] Add notes/tags
-  - [ ] Set manual override flags
-- [ ] Rule CRUD operations
-  - [ ] Create rule
-  - [ ] Update rule
-  - [ ] Change priority
-  - [ ] Enable/disable rule
-  - [ ] Delete rule
+### Enhanced APIs ✅ (COMPLETED)
+- [x] Merchant CRUD operations
+  - [x] Create merchant (POST /api/merchants)
+  - [x] Update merchant details (PUT /api/merchants/{id})
+  - [ ] Merge duplicate merchants (TODO)
+  - [x] Delete merchant (DELETE /api/merchants/{id})
+- [x] Category CRUD operations
+  - [x] Create category (POST /api/categories)
+  - [x] Update category (PUT /api/categories/{id})
+  - [x] Manage hierarchy (parent_id support)
+  - [x] Reorder categories (sort_order support)
+  - [x] Delete category (DELETE /api/categories/{id})
+- [x] Transaction editing
+  - [x] Update merchant (PUT /api/transactions/{id})
+  - [x] Update category
+  - [x] Mark as internal transfer
+  - [x] Add description
+  - [x] Set manual override flags (automatic)
+- [x] Rule CRUD operations
+  - [x] Create rule (POST /api/rules)
+  - [x] Update rule (PUT /api/rules/{id})
+  - [x] Change priority
+  - [x] Enable/disable rule
+  - [x] Delete rule (DELETE /api/rules/{id})
+  - [x] Re-apply rules (POST /api/rules/reapply)
 
-### Admin Utilities
-- [ ] Reparse failed events
-- [ ] Reparse by date range
-- [ ] Rebuild all transactions
-- [ ] Resync Google Sheets
-- [ ] Data export (CSV, JSON)
-- [ ] Data import
-- [ ] Database backup utility
+### Admin Utilities ✅ (MOSTLY COMPLETE)
+- [x] Reparse failed events (POST /api/admin/reparse)
+- [x] Reparse by date range
+- [x] Reparse by status filter
+- [x] Resync Google Sheets (sync-all, sync-transaction)
+- [x] System statistics (GET /api/admin/stats)
+- [ ] Rebuild all transactions (Can use reparse)
+- [ ] Data export (CSV, JSON) - TODO
+- [ ] Data import - TODO
+- [ ] Database backup utility - TODO
 
 ### Enhanced Parsing
 - [ ] More bank formats (HDFC, ICICI, SBI, Axis)
@@ -292,12 +305,12 @@
 | Phase | Status | Progress |
 |-------|--------|----------|
 | Phase 1: Backend Core | ✅ Complete | 100% |
-| Phase 2: Backend Features | 🔄 In Progress | 10% |
+| Phase 2: Backend Features | 🔄 In Progress | 85% |
 | Phase 3: Android App | ⏳ Not Started | 0% |
 | Phase 4: Web Dashboard | ⏳ Not Started | 0% |
 | Phase 5: Advanced Features | ⏳ Not Started | 0% |
 
-**Overall Project Progress: ~20%**
+**Overall Project Progress: ~37%**
 
 ---
 

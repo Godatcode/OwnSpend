@@ -45,6 +45,7 @@ OwnSpend/
 ## 📚 Documentation
 
 - **[Quick Start Guide](docs/QUICKSTART.md)** - Get up and running
+- **[Google Sheets Setup](docs/GOOGLE_SHEETS_SETUP.md)** - Mirror transactions to Google Sheets
 - **[Architecture](docs/ARCHITECTURE.md)** - System design and data flow
 - **[Progress Tracker](docs/PROGRESS.md)** - Development roadmap and status
 

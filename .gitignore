@@ -1,9 +1,40 @@
+# Python
 .venv/
+venv/
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
+.Python
+
+# Database files (NEVER commit these - contain sensitive data!)
 *.db
 *.sqlite
-*.log
+*.sqlite3
+ownspend.db
+backend/ownspend.db
+
+# Environment variables (contain secrets)
 .env
+*.env
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Build outputs
+dist/
+build/
+*.egg-info/

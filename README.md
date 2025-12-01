@@ -165,6 +165,13 @@ Parser can be extended in `backend/parser.py` to support additional banks/UPI ap
 - SQLite database encryption (optional)
 - Regular backups recommended
 
+### ⚠️ Important: Never Commit Sensitive Files
+
+The following files contain sensitive data and are excluded via `.gitignore`:
+- `ownspend.db` - Contains all your financial transactions and API keys
+- `.env` - Contains configuration secrets
+- Always verify these aren't staged before committing!
+
 ## Contributing
 
 This is a personal project, but contributions and suggestions are welcome!

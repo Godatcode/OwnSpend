@@ -1,0 +1,14 @@
+# Backend .gitignore
+
+# Database - NEVER commit (contains sensitive user data and API keys!)
+ownspend.db
+*.db
+*.sqlite
+
+# Environment variables
+.env
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo

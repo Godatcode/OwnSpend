@@ -22,7 +22,11 @@ class GoogleSheetsSync:
         """Get webhook URL from environment variables."""
         import os
         from dotenv import load_dotenv
-        load_dotenv()
+        
+        # Load .env from the backend directory
+        env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+        load_dotenv(env_path)
+        
         return os.getenv('GOOGLE_SHEETS_WEBHOOK_URL')
     
     def sync_transaction(self, db: Session, transaction: models.Transaction) -> bool:

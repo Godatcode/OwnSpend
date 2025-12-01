@@ -7,7 +7,7 @@ from datetime import datetime
 
 # Configuration
 BASE_URL = "http://localhost:8000"
-API_KEY = "YOUR_API_KEY_HERE"  # Replace with actual API key from setup.py
+API_KEY = "CJWnWGnhFOM_3bBpPBWF0tZIlwzrOtQmXGtj4b9fyIc"  # Your device API key
 
 # Sample SMS messages
 SAMPLE_MESSAGES = [

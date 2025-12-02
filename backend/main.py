@@ -91,20 +91,33 @@ def ingest_event(
             "error": str(e)
         }
 
-@app.get("/api/transactions", response_model=List[schemas.TransactionResponse])
+@app.get("/api/transactions")
 def get_transactions(
-    skip: int = 0,
-    limit: int = 100,
-    direction: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 50,
+    search: Optional[str] = None,
+    category: Optional[str] = None,
+    transaction_type: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
-    """Get list of transactions with filters."""
+    """Get list of transactions with filters and pagination."""
     query = db.query(models.Transaction)
     
-    if direction:
-        query = query.filter(models.Transaction.direction == direction)
+    if search:
+        query = query.filter(
+            (models.Transaction.description.ilike(f"%{search}%")) |
+            (models.Transaction.channel.ilike(f"%{search}%"))
+        )
     
-    transactions = query.order_by(models.Transaction.transaction_time.desc()).offset(skip).limit(limit).all()
+    if transaction_type:
+        query = query.filter(models.Transaction.direction == transaction_type)
+    
+    # Get total count
+    total = query.count()
+    
+    # Apply pagination
+    skip = (page - 1) * page_size
+    transactions = query.order_by(models.Transaction.transaction_time.desc()).offset(skip).limit(page_size).all()
     
     # Format response
     result = []
@@ -113,19 +126,30 @@ def get_transactions(
         merchant = db.query(models.Merchant).filter(models.Merchant.id == t.merchant_id).first() if t.merchant_id else None
         category = db.query(models.Category).filter(models.Category.id == t.category_id).first() if t.category_id else None
         
-        result.append(schemas.TransactionResponse(
-            id=t.id,
-            amount=t.amount,
-            direction=t.direction,
-            channel=t.channel,
-            description=t.description,
-            transaction_time=t.transaction_time,
-            merchant_display_name=merchant.display_name if merchant else None,
-            category_name=category.name if category else None,
-            account_name=account.display_name if account else "Unknown"
-        ))
+        result.append({
+            "id": str(t.id),
+            "amount": t.amount,
+            "transaction_type": t.direction,
+            "merchant": merchant.display_name if merchant else "Unknown",
+            "category": category.name if category else None,
+            "payment_method": t.channel,
+            "bank_name": account.bank_name if account else "Unknown",
+            "account_masked": account.display_name if account else "Unknown",
+            "reference_id": None,
+            "transaction_date": t.transaction_time.isoformat() if t.transaction_time else None,
+            "raw_text": t.description,
+            "notes": None,
+            "tags": None,
+            "created_at": t.inserted_at.isoformat() if hasattr(t, 'inserted_at') and t.inserted_at else None,
+            "updated_at": None
+        })
     
-    return result
+    return {
+        "transactions": result,
+        "total": total,
+        "page": page,
+        "page_size": page_size
+    }
 
 @app.get("/api/accounts")
 def get_accounts(db: Session = Depends(get_db)):
@@ -143,7 +167,23 @@ def get_merchants(db: Session = Depends(get_db)):
 def get_categories(db: Session = Depends(get_db)):
     """Get all categories."""
     categories = db.query(models.Category).all()
-    return categories
+    
+    # Format response to match Android app expectations
+    result = []
+    for cat in categories:
+        result.append({
+            "id": cat.id,
+            "name": cat.name,
+            "icon": cat.icon if hasattr(cat, 'icon') else None,
+            "color": cat.color if hasattr(cat, 'color') else None,
+            "parent_id": None,
+            "is_income": cat.name in ["Salary", "Income", "Refund"],
+            "created_at": cat.created_at.isoformat() if hasattr(cat, 'created_at') and cat.created_at else None
+        })
+    
+    return {
+        "categories": result
+    }
 
 @app.get("/api/raw-events")
 def get_raw_events(
@@ -177,7 +217,30 @@ def get_rules(
         query = query.filter(models.Rule.is_active == is_active)
     
     rules = query.order_by(models.Rule.priority.asc()).all()
-    return rules
+    
+    # Format response to match Android app expectations
+    result = []
+    for rule in rules:
+        result.append({
+            "id": rule.id,
+            "name": f"{rule.match_type}: {rule.match_value}",
+            "description": f"Action: {rule.action_type} -> {rule.action_value}",
+            "priority": rule.priority,
+            "is_active": rule.is_active,
+            "match_type": rule.match_type,
+            "match_field": "description",
+            "match_value": rule.match_value,
+            "match_case_sensitive": False,
+            "action_type": rule.action_type,
+            "action_value": rule.action_value,
+            "created_at": rule.created_at.isoformat() if hasattr(rule, 'created_at') and rule.created_at else None,
+            "updated_at": None
+        })
+    
+    return {
+        "rules": result,
+        "total": len(result)
+    }
 
 @app.post("/api/rules")
 def create_rule(
@@ -485,9 +548,9 @@ def update_transaction(
     
     # Sync updated transaction to Google Sheets
     try:
-        from .sheets_sync import get_sheets_sync
-        sheets_sync = get_sheets_sync()
-        sheets_sync.sync_transaction(db, transaction)
+        import sheets_sync
+        sheets_sync_instance = sheets_sync.get_sheets_sync()
+        sheets_sync_instance.sync_transaction(db, transaction)
     except Exception as e:
         print(f"Google Sheets sync error: {e}")
     
@@ -510,7 +573,7 @@ def sync_all_to_sheets(db: Session = Depends(get_db)):
 @app.post("/api/admin/sheets/sync-transaction/{transaction_id}")
 def sync_transaction_to_sheets(transaction_id: str, db: Session = Depends(get_db)):
     """Sync a specific transaction to Google Sheets."""
-    from .sheets_sync import get_sheets_sync
+    import sheets_sync
     
     transaction = db.query(models.Transaction).filter(
         models.Transaction.id == transaction_id
@@ -519,8 +582,8 @@ def sync_transaction_to_sheets(transaction_id: str, db: Session = Depends(get_db
     if not transaction:
         raise HTTPException(status_code=404, detail="Transaction not found")
     
-    sheets_sync = get_sheets_sync()
-    success = sheets_sync.sync_transaction(db, transaction)
+    sheets_sync_instance = sheets_sync.get_sheets_sync()
+    success = sheets_sync_instance.sync_transaction(db, transaction)
     
     return {
         "success": success,
@@ -530,13 +593,13 @@ def sync_transaction_to_sheets(transaction_id: str, db: Session = Depends(get_db
 @app.get("/api/admin/sheets/config")
 def get_sheets_config():
     """Get Google Sheets configuration status."""
-    from .sheets_sync import get_sheets_sync
+    import sheets_sync
     
-    sheets_sync = get_sheets_sync()
+    sheets_sync_instance = sheets_sync.get_sheets_sync()
     
     return {
-        "configured": sheets_sync.webhook_url is not None,
-        "webhook_url_set": bool(sheets_sync.webhook_url)
+        "configured": sheets_sync_instance.webhook_url is not None,
+        "webhook_url_set": bool(sheets_sync_instance.webhook_url)
     }
 
 # ============================================================================

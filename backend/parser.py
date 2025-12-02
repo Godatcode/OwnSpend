@@ -571,17 +571,17 @@ def process_raw_event(db: Session, raw_event: models.RawEvent) -> Optional[model
     
     # Apply rules engine for auto-categorization
     try:
-        from .rules_engine import RulesEngine
-        RulesEngine.apply_rules(db, transaction)
+        import rules_engine
+        rules_engine.RulesEngine.apply_rules(db, transaction)
     except Exception as e:
         # Don't fail transaction creation if rules fail
         print(f"Rules engine error: {e}")
     
     # Sync to Google Sheets
     try:
-        from .sheets_sync import get_sheets_sync
-        sheets_sync = get_sheets_sync()
-        sheets_sync.sync_transaction(db, transaction)
+        import sheets_sync
+        sheets_sync_instance = sheets_sync.get_sheets_sync()
+        sheets_sync_instance.sync_transaction(db, transaction)
     except Exception as e:
         # Don't fail transaction creation if sheets sync fails
         print(f"Google Sheets sync error: {e}")

@@ -23,33 +23,53 @@ class SmsReceiver : BroadcastReceiver() {
     }
     
     override fun onReceive(context: Context, intent: Intent) {
+        Log.d(TAG, "onReceive called with action: ${intent.action}")
+        
         if (intent.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) {
+            Log.d(TAG, "Not an SMS_RECEIVED action, ignoring")
             return
         }
         
-        Log.d(TAG, "SMS received")
+        Log.d(TAG, "SMS_RECEIVED action detected!")
         
         val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent)
+        Log.d(TAG, "Got ${messages?.size ?: 0} messages from intent")
+        
+        if (messages == null || messages.isEmpty()) {
+            Log.w(TAG, "No messages in SMS intent")
+            return
+        }
         
         for (message in messages) {
-            val sender = message.displayOriginatingAddress ?: continue
-            val body = message.messageBody ?: continue
+            val sender = message.displayOriginatingAddress
+            val body = message.messageBody
             
-            Log.d(TAG, "SMS from: $sender")
+            Log.d(TAG, "Processing SMS - Sender: $sender, Body length: ${body?.length ?: 0}")
+            
+            if (sender == null || body == null) {
+                Log.w(TAG, "Skipping SMS with null sender or body")
+                continue
+            }
+            
+            Log.d(TAG, "SMS from: $sender, Preview: ${body.take(50)}...")
             
             // Check if it's a bank SMS
             if (isBankSms(sender)) {
-                Log.d(TAG, "Bank SMS detected from $sender")
+                Log.d(TAG, "✅ Bank SMS detected from $sender")
                 processAndQueueSms(context, sender, body)
+            } else {
+                Log.d(TAG, "❌ Not a bank SMS (sender: $sender)")
             }
         }
     }
     
     private fun isBankSms(sender: String): Boolean {
         val senderUpper = sender.uppercase().replace("-", "").replace(" ", "")
-        return AppConfig.BANK_SMS_SENDERS.any { pattern ->
+        val isBank = AppConfig.BANK_SMS_SENDERS.any { pattern ->
             senderUpper.contains(pattern)
         }
+        Log.d(TAG, "isBankSms check: '$sender' -> '$senderUpper' -> $isBank")
+        return isBank
     }
     
     private fun processAndQueueSms(context: Context, sender: String, body: String) {

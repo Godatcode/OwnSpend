@@ -120,7 +120,7 @@ class SyncWorker(
                     source_sender = event.sourceSender,
                     source_package = event.sourcePackage,
                     raw_text = event.rawText,
-                    received_at = dateFormat.format(Date(event.receivedAt))
+                    device_timestamp = dateFormat.format(Date(event.receivedAt))
                 )
                 
                 val response = apiService.ingestEvent(apiKey, request)

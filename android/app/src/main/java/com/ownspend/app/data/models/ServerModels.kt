@@ -4,7 +4,7 @@ import com.google.gson.annotations.SerializedName
 
 // Transaction from server
 data class Transaction(
-    val id: Int,
+    val id: String,
     val amount: Double,
     @SerializedName("transaction_type")
     val transactionType: String,

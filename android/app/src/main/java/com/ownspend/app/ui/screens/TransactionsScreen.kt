@@ -57,6 +57,7 @@ fun TransactionsScreen(
             isLoading = true
             error = null
             try {
+                android.util.Log.d("TransactionsScreen", "Loading transactions from $serverUrl")
                 val response = ApiClient.getService(serverUrl).getTransactions(
                     apiKey = apiKey,
                     search = searchQuery.takeIf { it.isNotEmpty() },
@@ -65,11 +66,14 @@ fun TransactionsScreen(
                 )
                 if (response.isSuccessful) {
                     transactions = response.body()?.transactions ?: emptyList()
+                    android.util.Log.d("TransactionsScreen", "Loaded ${transactions.size} transactions")
                 } else {
-                    error = "Failed to load: ${response.code()}"
+                    error = "Failed to load: ${response.code()} - ${response.message()}"
+                    android.util.Log.e("TransactionsScreen", "Error: ${response.code()}")
                 }
             } catch (e: Exception) {
                 error = e.message ?: "Network error"
+                android.util.Log.e("TransactionsScreen", "Exception", e)
             }
             isLoading = false
         }
@@ -83,14 +87,41 @@ fun TransactionsScreen(
         loadTransactions()
     }
     
-    Column(modifier = Modifier.fillMaxSize()) {
-        // Search bar
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        // Modern Header
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.primary)
+                .padding(horizontal = 20.dp, vertical = 20.dp)
+        ) {
+            Column {
+                Text(
+                    text = "Transactions",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "${transactions.size} transactions",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White.copy(alpha = 0.9f)
+                )
+            }
+        }
+        
+        // Modern Search bar
         OutlinedTextField(
             value = searchQuery,
             onValueChange = { searchQuery = it },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(horizontal = 20.dp, vertical = 16.dp),
             placeholder = { Text("Search transactions...") },
             leadingIcon = { Icon(Icons.Default.Search, null) },
             trailingIcon = {
@@ -106,7 +137,11 @@ fun TransactionsScreen(
                 }
             },
             singleLine = true,
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(16.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface
+            )
         )
         
         // Filter chips
@@ -215,12 +250,14 @@ fun TransactionCard(
     val isDebit = transaction.transactionType == "debit"
     val amountColor = if (isDebit) Color(0xFFE53935) else Color(0xFF43A047)
     val amountPrefix = if (isDebit) "-" else "+"
+    val backgroundColor = if (isDebit) Color(0xFFFFEBEE) else Color(0xFFE8F5E9)
     
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
             modifier = Modifier
@@ -228,51 +265,75 @@ fun TransactionCard(
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Category icon
+            // Modern category icon with colored background
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(backgroundColor),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = getCategoryIcon(transaction.category),
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = amountColor,
+                    modifier = Modifier.size(28.dp)
                 )
             }
             
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(16.dp))
             
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = transaction.merchant ?: "Unknown",
+                    text = transaction.merchant ?: "Unknown Merchant",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium,
+                    fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Text(
-                    text = transaction.category ?: "Uncategorized",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.outline
-                )
+                Spacer(Modifier.height(4.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (transaction.category != null) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            Text(
+                                text = transaction.category,
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+                }
                 transaction.transactionDate?.let { date ->
+                    Spacer(Modifier.height(2.dp))
                     Text(
                         text = formatDate(date),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.outline
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
             
-            Text(
-                text = "$amountPrefix${currencyFormat.format(transaction.amount)}",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = amountColor
-            )
+            Spacer(Modifier.width(12.dp))
+            
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = "$amountPrefix${currencyFormat.format(transaction.amount)}",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = amountColor
+                )
+                Text(
+                    text = if (isDebit) "Spent" else "Received",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = amountColor.copy(alpha = 0.7f)
+                )
+            }
         }
     }
 }

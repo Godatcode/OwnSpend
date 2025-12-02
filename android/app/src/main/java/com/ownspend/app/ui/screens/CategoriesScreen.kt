@@ -44,14 +44,18 @@ fun CategoriesScreen(
             isLoading = true
             error = null
             try {
+                android.util.Log.d("CategoriesScreen", "Loading categories from $serverUrl")
                 val response = ApiClient.getService(serverUrl).getCategories(apiKey)
                 if (response.isSuccessful) {
                     categories = response.body()?.categories ?: emptyList()
+                    android.util.Log.d("CategoriesScreen", "Loaded ${categories.size} categories")
                 } else {
-                    error = "Failed to load: ${response.code()}"
+                    error = "Failed to load: ${response.code()} - ${response.message()}"
+                    android.util.Log.e("CategoriesScreen", "Error: ${response.code()}")
                 }
             } catch (e: Exception) {
                 error = e.message ?: "Network error"
+                android.util.Log.e("CategoriesScreen", "Exception", e)
             }
             isLoading = false
         }

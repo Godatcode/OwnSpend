@@ -17,7 +17,7 @@ data class IngestEventRequest(
     val source_sender: String,
     val source_package: String?,
     val raw_text: String,
-    val received_at: String  // ISO format datetime
+    val device_timestamp: String  // ISO format datetime
 )
 
 data class IngestEventResponse(
@@ -70,14 +70,14 @@ interface ApiService {
     @PATCH("/api/transactions/{id}")
     suspend fun updateTransaction(
         @Header("api-key") apiKey: String,
-        @Path("id") id: Int,
+        @Path("id") id: String,
         @Body request: UpdateTransactionRequest
     ): Response<Transaction>
     
     @DELETE("/api/transactions/{id}")
     suspend fun deleteTransaction(
         @Header("api-key") apiKey: String,
-        @Path("id") id: Int
+        @Path("id") id: String
     ): Response<Unit>
     
     // ============ Categories ============

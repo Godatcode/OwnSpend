@@ -16,20 +16,67 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
+// Modern gradient colors
+val PrimaryGreen = Color(0xFF00C853)
+val PrimaryGreenDark = Color(0xFF00A843)
+val SecondaryBlue = Color(0xFF2196F3)
+val AccentOrange = Color(0xFFFF6F00)
+val AccentPurple = Color(0xFF9C27B0)
+
+// Income/Expense colors
+val IncomeGreen = Color(0xFF4CAF50)
+val ExpenseRed = Color(0xFFE53935)
+
 private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFF4CAF50),
-    secondary = Color(0xFF81C784),
-    tertiary = Color(0xFFA5D6A7),
-    background = Color(0xFF121212),
-    surface = Color(0xFF1E1E1E)
+    primary = PrimaryGreen,
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFF1B5E20),
+    onPrimaryContainer = Color(0xFFB2FF59),
+    
+    secondary = SecondaryBlue,
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFF0D47A1),
+    onSecondaryContainer = Color(0xFF90CAF9),
+    
+    tertiary = AccentPurple,
+    onTertiary = Color.White,
+    
+    background = Color(0xFF0A0E1A),
+    onBackground = Color(0xFFE8E8E8),
+    
+    surface = Color(0xFF1A1F2E),
+    onSurface = Color(0xFFE8E8E8),
+    surfaceVariant = Color(0xFF2A3142),
+    onSurfaceVariant = Color(0xFFB8B8B8),
+    
+    error = ExpenseRed,
+    onError = Color.White
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Color(0xFF4CAF50),
-    secondary = Color(0xFF66BB6A),
-    tertiary = Color(0xFF81C784),
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE)
+    primary = PrimaryGreen,
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFB2FF59),
+    onPrimaryContainer = Color(0xFF1B5E20),
+    
+    secondary = SecondaryBlue,
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFFBBDEFB),
+    onSecondaryContainer = Color(0xFF0D47A1),
+    
+    tertiary = AccentPurple,
+    onTertiary = Color.White,
+    
+    background = Color(0xFFF5F7FA),
+    onBackground = Color(0xFF1A1A1A),
+    
+    surface = Color.White,
+    onSurface = Color(0xFF1A1A1A),
+    surfaceVariant = Color(0xFFF0F2F5),
+    onSurfaceVariant = Color(0xFF5A5A5A),
+    
+    error = ExpenseRed,
+    onError = Color.White
 )
 
 @Composable

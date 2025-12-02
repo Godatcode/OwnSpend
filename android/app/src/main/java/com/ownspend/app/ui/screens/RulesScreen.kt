@@ -42,17 +42,21 @@ fun RulesScreen(
             isLoading = true
             error = null
             try {
+                android.util.Log.d("RulesScreen", "Loading rules from $serverUrl")
                 val response = ApiClient.getService(serverUrl).getRules(
                     apiKey = apiKey,
                     isActive = if (showActiveOnly) true else null
                 )
                 if (response.isSuccessful) {
                     rules = response.body()?.rules ?: emptyList()
+                    android.util.Log.d("RulesScreen", "Loaded ${rules.size} rules")
                 } else {
-                    error = "Failed to load: ${response.code()}"
+                    error = "Failed to load: ${response.code()} - ${response.message()}"
+                    android.util.Log.e("RulesScreen", "Error: ${response.code()}")
                 }
             } catch (e: Exception) {
                 error = e.message ?: "Network error"
+                android.util.Log.e("RulesScreen", "Exception", e)
             }
             isLoading = false
         }

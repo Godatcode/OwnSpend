@@ -3,7 +3,7 @@ Rules Engine for auto-categorization and merchant mapping.
 """
 from typing import List, Optional
 from sqlalchemy.orm import Session
-from . import models
+import models
 import re
 
 

@@ -4,9 +4,9 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 from typing import Optional, List
 
-from .database import engine, Base, get_db
-from . import models, schemas
-from .parser import process_raw_event
+from database import engine, Base, get_db
+import models, schemas
+from parser import process_raw_event
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -637,4 +637,357 @@ def get_stats(db: Session = Depends(get_db)):
             "rules": total_rules,
             "accounts": total_accounts
         }
+    }
+
+
+# ============ EXPORT ENDPOINTS ============
+
+from fastapi.responses import StreamingResponse
+import csv
+import io
+import json as json_lib
+
+@app.get("/api/export/transactions/csv")
+def export_transactions_csv(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    category_id: Optional[int] = None,
+    account_id: Optional[int] = None,
+    direction: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Export transactions to CSV format.
+    
+    Parameters:
+    - start_date: Filter from date (YYYY-MM-DD)
+    - end_date: Filter to date (YYYY-MM-DD)
+    - category_id: Filter by category
+    - account_id: Filter by account
+    - direction: Filter by DEBIT or CREDIT
+    """
+    query = db.query(models.Transaction)
+    
+    # Apply filters
+    if start_date:
+        try:
+            start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+            query = query.filter(models.Transaction.transaction_time >= start_dt)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid start_date format. Use YYYY-MM-DD")
+    
+    if end_date:
+        try:
+            end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+            end_dt = end_dt.replace(hour=23, minute=59, second=59)
+            query = query.filter(models.Transaction.transaction_time <= end_dt)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid end_date format. Use YYYY-MM-DD")
+    
+    if category_id:
+        query = query.filter(models.Transaction.category_id == category_id)
+    
+    if account_id:
+        query = query.filter(models.Transaction.account_id == account_id)
+    
+    if direction:
+        query = query.filter(models.Transaction.direction == direction.upper())
+    
+    transactions = query.order_by(models.Transaction.transaction_time.desc()).all()
+    
+    # Create CSV in memory
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Header row
+    writer.writerow([
+        "ID", "Date", "Time", "Amount", "Currency", "Direction", "Channel",
+        "Merchant", "Category", "Account", "Bank", "Description", 
+        "Is Internal", "UPI ID"
+    ])
+    
+    # Data rows
+    for txn in transactions:
+        # Get related entities
+        merchant_name = ""
+        if txn.merchant_id:
+            merchant = db.query(models.Merchant).filter(models.Merchant.id == txn.merchant_id).first()
+            merchant_name = merchant.display_name if merchant else ""
+        
+        category_name = ""
+        if txn.category_id:
+            category = db.query(models.Category).filter(models.Category.id == txn.category_id).first()
+            category_name = category.name if category else ""
+        
+        account = db.query(models.Account).filter(models.Account.id == txn.account_id).first()
+        account_name = account.display_name if account else ""
+        bank_name = account.bank_name if account else ""
+        
+        writer.writerow([
+            txn.id,
+            txn.transaction_time.strftime("%Y-%m-%d") if txn.transaction_time else "",
+            txn.transaction_time.strftime("%H:%M:%S") if txn.transaction_time else "",
+            txn.amount,
+            txn.currency,
+            txn.direction,
+            txn.channel or "",
+            merchant_name or txn.raw_merchant_identifier or "",
+            category_name,
+            account_name,
+            bank_name,
+            txn.description or "",
+            "Yes" if txn.is_internal_transfer else "No",
+            txn.raw_merchant_identifier or ""
+        ])
+    
+    output.seek(0)
+    
+    # Generate filename with date range
+    filename = "ownspend_transactions"
+    if start_date:
+        filename += f"_from_{start_date}"
+    if end_date:
+        filename += f"_to_{end_date}"
+    filename += ".csv"
+    
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+
+@app.get("/api/export/transactions/json")
+def export_transactions_json(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    category_id: Optional[int] = None,
+    account_id: Optional[int] = None,
+    direction: Optional[str] = None,
+    include_raw_events: bool = False,
+    db: Session = Depends(get_db)
+):
+    """
+    Export transactions to JSON format.
+    
+    Parameters:
+    - start_date: Filter from date (YYYY-MM-DD)
+    - end_date: Filter to date (YYYY-MM-DD)
+    - category_id: Filter by category
+    - account_id: Filter by account
+    - direction: Filter by DEBIT or CREDIT
+    - include_raw_events: Include linked raw SMS/notification data
+    """
+    query = db.query(models.Transaction)
+    
+    # Apply filters
+    if start_date:
+        try:
+            start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+            query = query.filter(models.Transaction.transaction_time >= start_dt)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid start_date format. Use YYYY-MM-DD")
+    
+    if end_date:
+        try:
+            end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+            end_dt = end_dt.replace(hour=23, minute=59, second=59)
+            query = query.filter(models.Transaction.transaction_time <= end_dt)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid end_date format. Use YYYY-MM-DD")
+    
+    if category_id:
+        query = query.filter(models.Transaction.category_id == category_id)
+    
+    if account_id:
+        query = query.filter(models.Transaction.account_id == account_id)
+    
+    if direction:
+        query = query.filter(models.Transaction.direction == direction.upper())
+    
+    transactions = query.order_by(models.Transaction.transaction_time.desc()).all()
+    
+    # Build JSON response
+    result = {
+        "export_date": datetime.now().isoformat(),
+        "filters": {
+            "start_date": start_date,
+            "end_date": end_date,
+            "category_id": category_id,
+            "account_id": account_id,
+            "direction": direction
+        },
+        "total_count": len(transactions),
+        "transactions": []
+    }
+    
+    for txn in transactions:
+        # Get related entities
+        merchant_name = None
+        if txn.merchant_id:
+            merchant = db.query(models.Merchant).filter(models.Merchant.id == txn.merchant_id).first()
+            merchant_name = merchant.display_name if merchant else None
+        
+        category_name = None
+        if txn.category_id:
+            category = db.query(models.Category).filter(models.Category.id == txn.category_id).first()
+            category_name = category.name if category else None
+        
+        account = db.query(models.Account).filter(models.Account.id == txn.account_id).first()
+        
+        txn_data = {
+            "id": txn.id,
+            "transaction_time": txn.transaction_time.isoformat() if txn.transaction_time else None,
+            "amount": float(txn.amount),
+            "currency": txn.currency,
+            "direction": txn.direction,
+            "channel": txn.channel,
+            "merchant": {
+                "id": txn.merchant_id,
+                "name": merchant_name,
+                "raw_identifier": txn.raw_merchant_identifier
+            },
+            "category": {
+                "id": txn.category_id,
+                "name": category_name
+            },
+            "account": {
+                "id": txn.account_id,
+                "name": account.display_name if account else None,
+                "bank": account.bank_name if account else None,
+                "mask": account.account_mask if account else None
+            },
+            "description": txn.description,
+            "is_internal_transfer": txn.is_internal_transfer,
+            "manual_override_flags": txn.manual_override_flags
+        }
+        
+        if include_raw_events:
+            raw_events = db.query(models.RawEvent).filter(
+                models.RawEvent.related_transaction_id == txn.id
+            ).all()
+            txn_data["raw_events"] = [
+                {
+                    "id": event.id,
+                    "source": event.source_sender,
+                    "raw_text": event.raw_text,
+                    "received_at": event.received_at.isoformat() if event.received_at else None
+                }
+                for event in raw_events
+            ]
+        
+        result["transactions"].append(txn_data)
+    
+    # Generate filename
+    filename = "ownspend_transactions"
+    if start_date:
+        filename += f"_from_{start_date}"
+    if end_date:
+        filename += f"_to_{end_date}"
+    filename += ".json"
+    
+    json_str = json_lib.dumps(result, indent=2, ensure_ascii=False)
+    
+    return StreamingResponse(
+        iter([json_str]),
+        media_type="application/json",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+
+@app.get("/api/export/summary")
+def export_summary(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Get spending summary with category breakdown.
+    
+    Parameters:
+    - start_date: Filter from date (YYYY-MM-DD)
+    - end_date: Filter to date (YYYY-MM-DD)
+    """
+    query = db.query(models.Transaction)
+    
+    # Apply date filters
+    if start_date:
+        try:
+            start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+            query = query.filter(models.Transaction.transaction_time >= start_dt)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid start_date format. Use YYYY-MM-DD")
+    
+    if end_date:
+        try:
+            end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+            end_dt = end_dt.replace(hour=23, minute=59, second=59)
+            query = query.filter(models.Transaction.transaction_time <= end_dt)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid end_date format. Use YYYY-MM-DD")
+    
+    transactions = query.all()
+    
+    # Calculate totals
+    total_debit = sum(t.amount for t in transactions if t.direction == "DEBIT" and not t.is_internal_transfer)
+    total_credit = sum(t.amount for t in transactions if t.direction == "CREDIT" and not t.is_internal_transfer)
+    total_internal = sum(t.amount for t in transactions if t.is_internal_transfer)
+    
+    # Category breakdown (only debits, excluding internal transfers)
+    category_spending = {}
+    for txn in transactions:
+        if txn.direction == "DEBIT" and not txn.is_internal_transfer:
+            cat_id = txn.category_id or 0
+            if cat_id not in category_spending:
+                category_spending[cat_id] = {"amount": 0, "count": 0}
+            category_spending[cat_id]["amount"] += float(txn.amount)
+            category_spending[cat_id]["count"] += 1
+    
+    # Get category names
+    categories = db.query(models.Category).all()
+    cat_map = {c.id: c.name for c in categories}
+    cat_map[0] = "Uncategorized"
+    
+    category_breakdown = [
+        {
+            "category_id": cat_id,
+            "category_name": cat_map.get(cat_id, "Unknown"),
+            "total_amount": round(data["amount"], 2),
+            "transaction_count": data["count"],
+            "percentage": round(data["amount"] / total_debit * 100, 1) if total_debit > 0 else 0
+        }
+        for cat_id, data in sorted(category_spending.items(), key=lambda x: x[1]["amount"], reverse=True)
+    ]
+    
+    # Top merchants
+    merchant_spending = {}
+    for txn in transactions:
+        if txn.direction == "DEBIT" and not txn.is_internal_transfer:
+            merchant_key = txn.raw_merchant_identifier or "Unknown"
+            if merchant_key not in merchant_spending:
+                merchant_spending[merchant_key] = {"amount": 0, "count": 0}
+            merchant_spending[merchant_key]["amount"] += float(txn.amount)
+            merchant_spending[merchant_key]["count"] += 1
+    
+    top_merchants = sorted(
+        [{"merchant": k, "total_amount": round(v["amount"], 2), "count": v["count"]} 
+         for k, v in merchant_spending.items()],
+        key=lambda x: x["total_amount"],
+        reverse=True
+    )[:10]
+    
+    return {
+        "period": {
+            "start_date": start_date,
+            "end_date": end_date
+        },
+        "totals": {
+            "total_spending": round(total_debit, 2),
+            "total_income": round(total_credit, 2),
+            "net": round(total_credit - total_debit, 2),
+            "internal_transfers": round(total_internal, 2),
+            "transaction_count": len(transactions)
+        },
+        "category_breakdown": category_breakdown,
+        "top_merchants": top_merchants
     }

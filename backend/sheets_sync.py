@@ -5,7 +5,7 @@ import requests
 from typing import Optional, Dict, Any
 from datetime import datetime
 from sqlalchemy.orm import Session
-from . import models
+import models
 
 
 class GoogleSheetsSync:
